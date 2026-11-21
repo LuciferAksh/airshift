@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en-IN" data-forecast-transport="server">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="An air-quality planner for households and communities navigating winter smog.">
+  <meta name="theme-color" content="#182b21">
+  <title>AirShift — Plan around the smog</title>
+  <link rel="icon" type="image/png" href="/icon.png">
+  <link rel="stylesheet" href="/styles.css">
+  <script type="module" src="/app.mjs"></script>
+</head>
+<body>
+  <a class="skip" href="#workspace">Skip to planner</a>
+  <header class="site-header">
+    <div class="shell header-inner">
+      <a href="#top" class="wordmark" aria-label="AirShift home"><span class="logo" aria-hidden="true">≋</span>AirShift</a>
+      <nav aria-label="Main navigation"><a href="#workspace">Planner</a><a href="#methods">How it works</a></nav>
+    </div>
+  </header>
+  <main id="top">
+    <section class="hero">
+      <div class="shell hero-inner">
+        <p class="eyebrow hero-label">Winter smog planner</p>
+        <h1>Make a plan<br>for the air you have.</h1>
+        <p class="hero-copy">Keep what’s fixed, move what can wait, and see what each change means for the air you breathe and the trips you make.</p>
+        <a href="#workspace" class="hero-link">Explore the planner</a>
+      </div>
+    </section>
+    <div class="shell workspace" id="workspace" tabindex="-1">
+      <div class="workspace-heading">
+        <div><p class="eyebrow">Air &amp; routine</p><h2>Plan the day</h2></div>
+        <label for="mode">Forecast type<select id="mode"><option value="forecast">Tomorrow’s forecast</option><option value="sample">Sample winter day</option></select></label>
+      </div>
+      <div class="place-picker">
+        <p id="forecast-location" tabindex="-1">Forecast location <strong id="active-location">New Delhi</strong></p>
+        <form id="city-search">
+          <label for="place-name">Find a city or postal code<input id="place-name" type="search" minlength="2" maxlength="80" placeholder="For example, Pune or Lahore" required></label>
+          <button class="secondary" type="submit">Search cities</button>
+          <button type="button" id="detect" class="secondary" aria-describedby="location-privacy">Detect my location</button>
+        </form>
+        <p class="hint" id="location-privacy">With permission, location detection sends rounded coordinates to the forecast provider.</p>
+        <p class="status" id="location-status" role="status"></p>
+        <p id="place-status" class="status" role="status"></p>
+        <ul id="place-results" class="place-results" hidden></ul>
+      </div>
+      <section class="current panel" aria-labelledby="current-heading">
+        <div class="current-lead"><p class="eyebrow">Current conditions</p><h3 id="current-heading">Air right now</h3><p id="current-meta" class="status" role="status"></p><a id="official-aqi" class="text-link" href="https://app.cpcbccr.com/AQIIndia">Official Indian AQI readings</a></div>
+        <div class="current-grid" id="current-grid" hidden>
+          <div class="current-cell current-index" id="current-index"><p class="eyebrow">US AQI</p><p id="current-aqi" class="current-number"></p><p id="current-band" class="current-detail"></p></div>
+          <div class="current-cell"><p class="eyebrow">PM₂.₅</p><p id="current-pm" class="current-number"></p><p class="current-detail">µg/m³</p></div>
+          <div class="current-cell"><p class="eyebrow">PM₁₀</p><p id="current-pm10" class="current-number"></p><p class="current-detail">µg/m³</p></div>
+          <div class="current-cell"><p class="eyebrow">Top AQI contributor</p><p id="current-top" class="current-pollutant"></p></div>
+        </div>
+      </section>
+      <div class="workspace-grid">
+        <section class="panel air" aria-labelledby="air-heading">
+          <div class="panel-heading"><div><p class="eyebrow" id="forecast-label">Tomorrow</p><h3 id="air-heading">Hourly PM₂.₅</h3></div><p class="source-pill" id="dataset">Model forecast</p></div>
+          <p class="status source-meta" id="forecast-status" role="status"></p>
+          <canvas id="chart" height="166" aria-hidden="true"></canvas>
+          <div class="legend" aria-hidden="true"><span><i class="key-normal"></i>Hourly PM₂.₅</span><span><i class="key-mark"></i>Suggested start hour</span></div>
+          <details class="hourly-detail"><summary>View hourly data table</summary><div class="table-wrap" role="region" tabindex="0" aria-label="Scrollable hourly forecast"><table><caption id="hourly-caption">Regional outdoor air quality, local time</caption><thead><tr><th scope="col">Time</th><th scope="col">PM₂.₅ (µg/m³)</th><th scope="col">US AQI · forecast</th></tr></thead><tbody id="hours"></tbody></table></div></details>
+        </section>
+        <aside class="panel controls" aria-labelledby="routine-heading">
+          <p class="eyebrow">Your constraints</p>
+          <h3 id="routine-heading">Build your routine</h3>
+          <form id="routine-form" novalidate>
+            <label for="audience">Who are you planning for?<select id="audience" name="audience"><option value="family">Household</option><option value="community">Community group</option></select></label>
+            <label for="activity">Flexible activity<select id="activity" name="activity"><option value="default">Suggested for this routine</option><option value="errand">Market errand</option><option value="exercise">Outdoor exercise</option><option value="play">Outdoor play</option><option value="group">Outdoor group activity</option></select></label>
+            <div class="field-pair times"><label for="fixedTime"><span id="fixed-label">School pickup</span><input id="fixedTime" name="fixedTime" type="time" required></label><label for="usualTime">Usual flexible start<input id="usualTime" name="usualTime" type="time" required></label></div>
+            <div class="field-pair times"><label for="earliest">Earliest start<input id="earliest" name="earliest" type="time" required></label><label for="latest">Latest finish<input id="latest" name="latest" type="time" required></label></div>
+            <details><summary>Outdoor minutes and indoor options</summary>
+              <div class="field-pair"><label for="fixedMinutes">Fixed outdoor min<input id="fixedMinutes" name="fixedMinutes" type="number" min="5" max="180" required></label><label for="minutes">Flexible outdoor min<input id="minutes" name="minutes" type="number" min="5" max="180" required></label></div>
+              <label class="check"><input type="checkbox" name="sensitive" id="sensitive">Plan for children, older adults, or a more cautious group</label>
+              <label class="check"><input type="checkbox" name="indoorAvailable" id="indoorAvailable">An indoor option for exercise, play or group activities is available</label>
+              <label class="check"><input type="checkbox" name="purifier" id="purifier">I have a portable particle filter</label>
+              <label for="indoorAction">Indoor action<select id="indoorAction" name="indoorAction"><option value="smoke">Skip incense and candles</option><option value="cooking">Choose less frying</option><option value="filter">Use a portable filter</option><option value="dust">Damp-wipe dusty surfaces</option></select></label>
+            </details>
+            <details><summary>Lower-emission travel options</summary>
+              <label for="travel">Travel change<select id="travel" name="travel"><option value="none">Keep my usual travel</option><option value="transit">Replace a solo drive with rail</option><option value="bundle">Combine two stops in one drive</option></select></label>
+              <label for="distance">Solo car distance avoided (km)<input id="distance" name="distance" type="number" min="0" max="200" step="any" required></label>
+            </details>
+            <button type="submit" class="primary">Update day plan</button>
+            <p class="status" id="plan-status" role="status"></p>
+          </form>
+          <details class="assistant" id="assistant">
+            <summary>Describe your routine with Gemini</summary>
+            <form id="ai-form">
+              <label for="note">Routine to turn into plan settings</label>
+              <textarea id="note" rows="4" maxlength="600" required aria-describedby="ai-disclosure" placeholder="Pickup is at 3 pm. My 30-minute errand is usually at 9 am, but I’m free from 11 am to 5 pm."></textarea>
+              <p class="hint" id="ai-disclosure">Gemini receives only what you type here. Leave out names, addresses and medical details.</p>
+              <div class="assistant-actions"><button type="submit" class="secondary" id="ask">Draft settings</button><button type="button" class="button-link" id="example-note">Use example</button></div>
+            </form>
+            <p class="status" id="ai-status" role="status"></p>
+            <div id="draft-review" hidden><ul id="draft-list"></ul><button type="button" id="apply" class="primary">Apply reviewed settings</button></div>
+          </details>
+        </aside>
+        <section class="panel results" id="day-plan" aria-labelledby="results-heading">
+          <div class="panel-heading"><div><p class="eyebrow">Your recommendations</p><h3 id="results-heading">Day plan</h3></div><p class="source-pill" id="audience-pill"></p></div>
+          <div id="result-content">
+              <div class="recommend-box">
+                <p id="recommend-provenance" class="eyebrow">Forecast-based starting plan</p>
+                <p id="recommend-rationale" class="recommend-rationale" hidden></p>
+                <form id="recommend-form">
+                  <div class="field-pair"><label for="priority">Prioritize<select id="priority" name="priority"><option value="exposure">Lower outdoor exposure</option><option value="schedule">Stay close to my usual schedule</option><option value="travel">Reduce solo driving</option></select></label>
+                    <label for="concern">Main indoor concern<select id="concern" name="concern"><option value="unknown">Unsure</option><option value="cooking">Cooking smoke</option><option value="smoke">Incense or candles</option><option value="dust">Settled dust</option></select></label></div>
+                  <label class="check"><input type="checkbox" name="rail">Rail or metro can replace my solo drive</label>
+                  <label class="check"><input type="checkbox" name="combine">I can combine two car stops into one trip</label>
+                  <button class="primary" id="recommend-submit" type="submit">Personalize recommendations with Gemini</button>
+                </form>
+                <p class="hint">Gemini uses your applied routine, these preferences and summarized forecast comparisons.</p>
+                <p id="recommend-status" class="status" role="status"></p>
+              </div>
+            <div class="action-row"><span class="action-symbol fixed-symbol" aria-hidden="true">◷</span><div><p class="eyebrow">Fixed commitment</p><h4 id="fixed-title"></h4><p id="fixed-reason"></p></div></div>
+            <div class="action-row"><span class="action-symbol move-symbol" aria-hidden="true">↗</span><div><p class="eyebrow">Flexible activity</p><h4 id="flex-title"></h4><p id="flex-reason"></p></div></div>
+            <div class="action-row"><span class="action-symbol home-symbol" aria-hidden="true">⌂</span><div><p class="eyebrow">Indoor air</p><h4 id="indoor-title"></h4><p id="indoor-reason"></p><a class="text-link" id="indoor-source" href="https://www.epa.gov/indoor-air-quality-iaq/sources-indoor-particulate-matter-pm">EPA guidance</a></div></div>
+            <div class="action-row travel-row" id="travel-row" hidden><span class="action-symbol fixed-symbol" aria-hidden="true">↔</span><div><p class="eyebrow">Lower-emission travel</p><h4 id="travel-title"></h4><p id="travel-reason"></p></div></div>
+            <div class="impacts" aria-label="Estimated impacts">
+              <div class="impact"><p class="eyebrow">Outdoor exposure proxy</p><p class="impact-number" id="exposure-number"></p><p id="exposure-note"></p></div>
+              <div class="impact"><p class="eyebrow">Solo car travel avoided</p><p class="impact-number" id="travel-number"></p><p id="travel-note"></p></div>
+            </div>
+            <details id="share" class="notice" hidden><summary>Prepare a community notice</summary><label for="notice-text">Shareable notice</label><textarea readonly id="notice-text" rows="5"></textarea><button class="secondary" type="button" id="copy">Copy notice</button><p class="status" role="status" id="copy-status"></p></details>
+          </div>
+          <p id="result-empty" hidden>Choose an available forecast to see recommendations.</p>
+        </section>
+      </div>
+      <section class="methods" id="methods" aria-labelledby="methods-heading">
+        <p class="eyebrow">Sources &amp; assumptions</p><h2 id="methods-heading">How the plan works</h2>
+        <div class="method-grid">
+          <div><h3>Forecast, with context</h3><p>Live plans use tomorrow’s regional Open-Meteo / CAMS forecast for the selected location. The model grid in India is roughly 45 km and can miss local spikes. Compare against official readings and follow your local advisories.</p><p><a href="https://open-meteo.com/en/docs/air-quality-api">Open-Meteo</a> · <a href="https://atmosphere.copernicus.eu/">CAMS</a> · <a href="https://app.cpcbccr.com/AQIIndia">CPCB Indian AQI</a></p></div>
+          <div><h3>A comparison you can check</h3><p>Each outdoor minute contributes its hourly forecast concentration. The planner keeps the fixed commitment and compares feasible times for the same flexible activity. The resulting concentration × time compares planned outdoor exposure. Indoor conditions, personal dose, and health outcomes require different information.</p><p><a href="https://www.airnow.gov/publications/activity-guides/air-quality-and-outdoor-activity-guidance-for-schools/">AirNow activity guidance</a></p></div>
+          <div><h3>Travel and indoor air</h3><p>Car kilometres count only the solo distance you enter as avoided. Outdoor walking and transfers need a separate check. Indoor actions are based on your available options and explain which particle source or pathway they affect.</p><p><a href="https://www.epa.gov/indoor-air-quality-iaq/sources-indoor-particulate-matter-pm">EPA indoor particle sources</a></p></div>
+        </div>
+      </section>
+    </div>
+  </main>
+  <footer><div class="shell footer-inner"><span class="wordmark"><span class="logo" aria-hidden="true">≋</span>AirShift</span><p>Built for PromptWars Virtual · Main Challenge 06</p></div></footer>
+</body>
+</html>

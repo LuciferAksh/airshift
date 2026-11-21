@@ -1,0 +1,30 @@
+import { readFile } from 'node:fs/promises';
+import { createServer } from 'node:http';
+import { Readable } from 'node:stream';
+import { files, webApp } from './http.mjs';
+
+export async function appServer({ key, model, ...options } = {}) {
+  const assets = Object.fromEntries(await Promise.all(Object.entries(files).map(async ([route, [file, type]]) => {
+    const content = await readFile(new URL(`../public/${file}`, import.meta.url));
+    return [route, { content, type }];
+  })));
+  const handle = webApp(assets, options);
+
+  return createServer({ requestTimeout: 20000, headersTimeout: 10000 }, async (incoming, outgoing) => {
+    try {
+      const { method, headers, url } = incoming;
+      if (!url.startsWith('/') || url.startsWith('//') || url.startsWith('/\\')) {
+        outgoing.writeHead(400).end();
+        return;
+      }
+      const body = method === 'POST' ? Readable.toWeb(incoming) : undefined;
+      const request = new Request(`http://${headers.host ?? '127.0.0.1'}${url}`, { method, headers, body, duplex: 'half' });
+      const response = await handle(request, { key, model });
+      const content = Buffer.from(await response.arrayBuffer());
+      outgoing.writeHead(response.status, Object.fromEntries(response.headers)).end(content);
+    } catch {
+      if (!outgoing.headersSent) outgoing.writeHead(500);
+      outgoing.end();
+    }
+  });
+}
