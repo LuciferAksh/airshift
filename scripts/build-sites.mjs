@@ -1,4 +1,4 @@
-import { copyFile, mkdir, readFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { build } from 'esbuild';
 import { files } from '../server/http.mjs';
 
@@ -21,5 +21,11 @@ await build({
   }],
 });
 
-await mkdir('dist/.openai', { recursive: true });
-await copyFile('.openai/hosting.json', 'dist/.openai/hosting.json');
+const hostingManifest = await readFile('.openai/hosting.json').catch((error) => {
+  if (error.code !== 'ENOENT') throw error;
+  return null;
+});
+if (hostingManifest) {
+  await mkdir('dist/.openai', { recursive: true });
+  await writeFile('dist/.openai/hosting.json', hostingManifest);
+}

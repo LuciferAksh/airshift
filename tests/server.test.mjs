@@ -107,6 +107,7 @@ test('a failed forecast can be retried', async () => {
 test('Gemini uses a server-side header and independently validates returned settings', async () => {
   const gemini = (draft, finishReason = 'STOP') => async (_, request) => {
     assert.equal(request.headers['x-goog-api-key'], 'test-key');
+    assert.equal(request.redirect, 'error');
     const body = JSON.parse(request.body);
     assert.equal(body.contents[0].parts[0].text, 'Pickup at 3 pm');
     assert.equal(body.generationConfig.responseJsonSchema.additionalProperties, false);

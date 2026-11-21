@@ -10,7 +10,8 @@ export function mountRecommendations(getInput, onUpdate) {
 
   function reset() {
     controller?.abort();
-    button.disabled = false;
+    controller = null;
+    button.removeAttribute('aria-disabled');
     rationale.hidden = true;
     rationale.textContent = '';
     status.textContent = '';
@@ -20,6 +21,7 @@ export function mountRecommendations(getInput, onUpdate) {
   form.addEventListener('input', () => { reset(); onUpdate(null); });
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
+    if (controller) return;
     const conditions = getInput();
     if (!conditions) return;
     reset();
@@ -28,7 +30,7 @@ export function mountRecommendations(getInput, onUpdate) {
     const input = { ...conditions, preferences: { priority: preferences.priority, concern: preferences.concern, rail: preferences.rail === 'on', combine: preferences.combine === 'on' } };
     const active = new AbortController();
     controller = active;
-    button.disabled = true;
+    button.setAttribute('aria-disabled', 'true');
     status.textContent = 'Gemini is comparing your options…';
     try {
       const response = await fetch('/api/recommendations', {
@@ -48,7 +50,10 @@ export function mountRecommendations(getInput, onUpdate) {
     } catch {
       if (!active.signal.aborted) status.textContent = 'Gemini could not personalize this plan. The forecast-based plan remains available.';
     } finally {
-      if (!active.signal.aborted) button.disabled = false;
+      if (controller === active) {
+        controller = null;
+        button.removeAttribute('aria-disabled');
+      }
     }
   });
   return { reset };

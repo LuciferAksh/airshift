@@ -32,10 +32,20 @@ async (page) => {
   await heading('Move market errand to 14:00');
   await page.getByText('View hourly data table', { exact: true }).click();
   if (await page.getByRole('row').count() !== 25) throw new Error('The hourly table should show one header and 24 readings');
+  if (await page.getByRole('rowheader').count() !== 24) throw new Error('The hourly table must identify each row by time');
 
-  await page.getByText('Lower-emission travel options', { exact: true }).click();
+  const distance = page.getByLabel('Solo car distance avoided (km)');
+  const travelDetails = page.getByText('Lower-emission travel options', { exact: true });
+  await travelDetails.click();
   await page.getByLabel('Travel change').selectOption('transit');
-  await page.getByLabel('Solo car distance avoided (km)').fill('6');
+  await distance.fill('201');
+  await travelDetails.click();
+  await click('Update day plan');
+  if (await distance.getAttribute('aria-invalid') !== 'true') throw new Error('The distance error must identify its input');
+  if (await distance.getAttribute('aria-describedby') !== 'plan-status') throw new Error('The distance input must announce the correction');
+  if (!await distance.evaluate((element) => document.activeElement === element)) throw new Error('Invalid input inside a collapsed panel must receive focus');
+  await distance.fill('6');
+  if (await distance.getAttribute('aria-invalid')) throw new Error('Editing the distance must clear its old error');
   await click('Update day plan');
   await page.getByText('6 km', { exact: true }).waitFor();
 
@@ -63,6 +73,30 @@ async (page) => {
   await heading('Essential supply pickup stays at 15:00');
   await click('Apply reviewed settings');
   await heading('Essential supply pickup stays at 16:00');
+  const draftButton = page.getByRole('button', { name: 'Draft settings' });
+  if (!await draftButton.evaluate((element) => document.activeElement === element)) throw new Error('Applying a draft must leave focus on a visible control');
+
+  await page.unroute('**/api/routine');
+  let finishDraft;
+  const holdDraft = new Promise((resolve) => { finishDraft = resolve; });
+  await page.route('**/api/routine', async (route) => {
+    await holdDraft;
+    await route.fulfill({ json: { draft: { fixedTime: '17:00' } } });
+  });
+  const sent = page.waitForRequest('**/api/routine');
+  await draftButton.press('Enter');
+  const olderRequest = await sent;
+  const failed = page.waitForEvent('requestfailed', { predicate: (request) => request === olderRequest });
+  if (await draftButton.getAttribute('aria-disabled') !== 'true') throw new Error('A pending draft must prevent duplicate requests');
+  if (!await draftButton.evaluate((element) => document.activeElement === element)) throw new Error('A pending draft must retain keyboard focus');
+  const noteInput = page.getByLabel('Routine to turn into plan settings');
+  const originalNote = await noteInput.inputValue();
+  await noteInput.fill(`${originalNote} Edited.`);
+  await noteInput.fill(originalNote);
+  await failed;
+  finishDraft();
+  await page.unrouteAll({ behavior: 'wait' });
+  if (await page.getByRole('button', { name: 'Apply reviewed settings' }).isVisible()) throw new Error('Editing and restoring a note must still invalidate its pending draft');
   await access();
 
   await page.setViewportSize({ width: 390, height: 844 });
@@ -93,10 +127,10 @@ async (page) => {
   await mode.selectOption('forecast');
   await page.locator('#forecast-status').filter({ hasText: /Pune, Maharashtra, India.*Retrieved/ }).waitFor({ timeout: 24000 });
 
-  await context.addInitScript(() => {
+  await page.goto(`${origin}/?sample=1`);
+  await page.evaluate(() => {
     navigator.geolocation.getCurrentPosition = (_success, denied) => denied({ code: 1 });
   });
-  await page.goto(`${origin}/?sample=1`);
   await click('Detect my location');
   await page.getByText('Location permission was declined.', { exact: false }).waitFor();
   await heading('Move market errand to 14:00');

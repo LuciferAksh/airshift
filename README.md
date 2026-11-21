@@ -12,6 +12,8 @@ npm test
 npm run coverage
 ```
 
+With development dependencies installed through `npm ci`, run `npm run build:sites` to produce the portable Worker bundle under `dist/server/`. Private hosting metadata is optional for the bundle. The GitHub workflow runs the tests and build on every push and pull request.
+
 Open `http://127.0.0.1:4176`. New Delhi’s current modeled AQI and tomorrow’s forecast load by default. Search for a city or postal code or click **Detect my location** to use your approximate position. Open-Meteo receives the city search and the forecast uses rounded coordinates. Gemini receives no coordinates or location lookup terms. Community notices may show a selected city name and omit detected coordinates. The server keeps a bounded in-memory forecast cache. For a deterministic walkthrough, open `http://127.0.0.1:4176/?sample=1`. The sample uses New Delhi and switching back restores the selected live location. For a hosted Node runtime, set `HOST=0.0.0.0` and use the platform’s `PORT`.
 
 To enable Gemini, copy `.env.example` to `.env` and supply a dedicated `GEMINI_API_KEY`, or set that secret in the hosting environment. Restart after changing configuration. **Draft settings** parses a routine for review before applying it. **Personalize recommendations with Gemini** sends feasible schedule, indoor and travel choices with the user's priorities for ranking. Gemini returns action IDs and a short personalized rationale. The app validates the choices and computes the displayed impacts. Both actions require a click, and the forecast-based plan remains usable during provider outages.
@@ -38,11 +40,13 @@ npx --package @playwright/cli playwright-cli -s=airshift-check close
 | Boundary | Responsibility |
 | --- | --- |
 | `public/planner.mjs` | Validates settings, evaluates full minute-aligned slots without overlapping the fixed commitment, and computes comparisons and notices. |
-| `public/app.mjs` | Collects settings, requests forecast and Gemini drafts, and renders the plan via text nodes. |
+| `public/app.mjs` | Coordinates the applied routine, current forecast and validated recommendation. |
+| `public/forecast-ui.mjs`, `public/places.mjs` | Manage location and forecast requests, render current readings, and expose the hourly data as a table and a chart. |
+| `public/routine-ui.mjs` | Maps form inputs to settings, guides users to invalid fields, and lets them review Gemini drafts before applying them. |
+| `public/plan-view.mjs`, `public/recommendations-ui.mjs` | Render impact estimates, the community notice and Gemini's selected recommendations using text nodes. |
 | `public/air-data.mjs`, `server/forecast.mjs` | Validate current conditions and tomorrow’s forecast from Open-Meteo. Local Node requests use the server cache first and the public browser route as fallback. The hosted build uses the public route first after the hosting runtime failed to reach the provider. |
 | `server/gemini.mjs` | Extracts explicit schedule, travel and home constraints with a structured schema and validates the response before returning it. |
 | `public/recommendations.mjs`, `server/gemini.mjs` | Build bounded recommendations from eligible intervals and declared options. Gemini selects existing action IDs and writes the rationale. The same contract checks the result before the browser displays it. |
-| `public/places.mjs` | Resolves city and postal-code searches through [Open-Meteo Geocoding](https://open-meteo.com/en/docs/geocoding-api). |
 | `server/http.mjs` | Serves an allowlist of assets, validates inbound requests and limits location and Gemini requests. The 40-call Gemini hourly quota is per process or Worker isolate. |
 | `server/app.mjs`, `server/worker.mjs` | Connect the same application handler to Node HTTP and hosted Workers respectively. |
 

@@ -26,32 +26,53 @@ export const draftFields = Object.freeze({
   indoorAction: choice(indoorActions), distance: { type: 'number', minimum: 0, maximum: 200 },
 });
 
+function validField(key, value) {
+  if (!Object.hasOwn(draftFields, key)) return false;
+  const field = draftFields[key];
+  if (field.enum) return field.enum.includes(value);
+  if (field.pattern) return Number.isFinite(toMinutes(value));
+  if (field.type === 'boolean') return typeof value === 'boolean';
+  if (field.type === 'integer' && !Number.isInteger(value)) return false;
+  return Number.isFinite(value) && value >= field.minimum && value <= field.maximum;
+}
+
 export function validDraft(draft) {
-  if (!draft || typeof draft !== 'object' || Array.isArray(draft)) return false;
-  return Object.entries(draft).every(([key, value]) => {
-    if (!Object.hasOwn(draftFields, key)) return false;
-    const field = draftFields[key];
-    if (field.enum) return field.enum.includes(value);
-    if (field.pattern) return Number.isFinite(toMinutes(value));
-    if (field.type === 'boolean') return typeof value === 'boolean';
-    if (field.type === 'integer' && !Number.isInteger(value)) return false;
-    return Number.isFinite(value) && value >= field.minimum && value <= field.maximum;
-  });
+  return Boolean(draft && typeof draft === 'object' && !Array.isArray(draft)
+    && Object.entries(draft).every(([key, value]) => validField(key, value)));
+}
+
+export function profileIssue(profile) {
+  const { audience, ...fields } = profile;
+  if (!Object.hasOwn(audiences, audience)) {
+    return { field: 'audience', message: 'Choose a household or community group.' };
+  }
+  for (const [key, rule] of Object.entries(draftFields)) {
+    if (validField(key, fields[key])) continue;
+    if (rule.pattern) return { field: key, message: 'Enter a valid start or finish time.' };
+    if (key === 'distance') return { field: key, message: 'Enter a distance from 0 to 200 km.' };
+    if (rule.type === 'integer') return { field: key, message: 'Enter a whole number from 5 to 180 minutes.' };
+    return { field: key, message: 'Choose a supported option.' };
+  }
+  if (Object.keys(fields).length !== Object.keys(draftFields).length) {
+    return { field: null, message: 'The routine contains an unsupported setting.' };
+  }
+  if (toMinutes(profile.fixedTime) + profile.fixedMinutes > 1440) {
+    return { field: 'fixedTime', message: 'The fixed commitment must end on the same day.' };
+  }
+  if (toMinutes(profile.usualTime) + profile.minutes > 1440) {
+    return { field: 'usualTime', message: 'The flexible activity must end on the same day.' };
+  }
+  if (toMinutes(profile.earliest) + profile.minutes > toMinutes(profile.latest)) {
+    return { field: 'latest', message: 'The flexible window must fit the full activity before its latest finish.' };
+  }
+  if (profile.indoorAction === 'filter' && !profile.purifier) {
+    return { field: 'indoorAction', message: 'Confirm you have a portable filter or choose a no-cost action.' };
+  }
+  return null;
 }
 
 export function validateProfile(profile) {
-  const { audience, ...fields } = profile;
-  if (!Object.hasOwn(audiences, audience) || !validDraft(fields) || Object.keys(fields).length !== Object.keys(draftFields).length) {
-    return 'Check the times, outdoor minutes (5–180) and travel distance (0–200 km).';
-  }
-  if (toMinutes(profile.fixedTime) + profile.fixedMinutes > 1440 || toMinutes(profile.usualTime) + profile.minutes > 1440) {
-    return 'Both activities must end on the same day.';
-  }
-  if (toMinutes(profile.earliest) + profile.minutes > toMinutes(profile.latest)) {
-    return 'The flexible window must fit the full activity before its latest finish.';
-  }
-  if (profile.indoorAction === 'filter' && !profile.purifier) return 'Confirm you have a portable filter or choose a no-cost action.';
-  return '';
+  return profileIssue(profile)?.message ?? '';
 }
 
 export const aqiBand = (aqi) => {

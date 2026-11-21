@@ -18,7 +18,7 @@ body, p, h1, h2, h3, h4 { margin: 0; }
 a { color: #24543c; text-underline-offset: .22em; }
 button, select, input, textarea { font: inherit; }
 button, summary, select { cursor: pointer; }
-button:disabled { opacity: .6; cursor: wait; }
+button:disabled, button[aria-disabled="true"] { opacity: .6; cursor: wait; }
 :focus-visible { outline: 3px solid #966019; outline-offset: 4px; }
 #workspace, #methods { scroll-margin-top: 1rem; }
 .shell { width: min(1168px, calc(100% - 64px)); margin-inline: auto; }

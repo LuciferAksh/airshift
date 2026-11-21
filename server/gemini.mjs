@@ -8,6 +8,7 @@ async function generateStructured(input, instruction, schema, { key, model = 'ge
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
   const response = await fetcher(url, {
     method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
+    redirect: 'error',
     signal: AbortSignal.timeout(12000),
     body: JSON.stringify({
       systemInstruction: { parts: [{ text: instruction }] },

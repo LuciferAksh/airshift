@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { defaults } from '../public/catalog.mjs';
-import { activityNotice, aqiBand, formatTime, makePlan, sampleForecast, validDraft, validateProfile } from '../public/planner.mjs';
+import { activityNotice, aqiBand, formatTime, makePlan, profileIssue, sampleForecast, validDraft, validateProfile } from '../public/planner.mjs';
 
 const uniformForecast = (pm, aqi) => ({ ...sampleForecast('delhi'), hours: Array.from({ length: 24 }, (_, time) => ({ time, pm, aqi })) });
 
@@ -84,6 +84,24 @@ test('profiles reject unfit windows, cross-midnight activities and unavailable f
   assert.match(validateProfile({ ...defaults(), fixedTime: '23:55' }), /same day/);
   assert.match(validateProfile({ ...defaults(), indoorAction: 'filter' }), /portable filter/);
   assert.equal(validateProfile({ ...defaults(), indoorAction: 'filter', purifier: true }), '');
+});
+
+test('routine validation identifies the field to correct', () => {
+  const profile = defaults();
+  for (const [settings, field] of [
+    [{ audience: 'other' }, 'audience'],
+    [{ activity: 'other' }, 'activity'],
+    [{ fixedTime: '' }, 'fixedTime'],
+    [{ minutes: 1 }, 'minutes'],
+    [{ distance: -1 }, 'distance'],
+    [{ earliest: '16:45' }, 'latest'],
+    [{ usualTime: '23:50' }, 'usualTime'],
+    [{ indoorAction: 'filter' }, 'indoorAction'],
+    [{ unsupported: true }, null],
+  ]) {
+    assert.equal(profileIssue({ ...profile, ...settings }).field, field);
+  }
+  assert.equal(profileIssue(profile), null);
 });
 
 test('Gemini draft accepts only supported scalars and preserves explicit false', () => {
