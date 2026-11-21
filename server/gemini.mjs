@@ -6,17 +6,27 @@ const instruction = `Extract explicit planning constraints from a short househol
 
 async function generateStructured(input, instruction, schema, { key, model = 'gemini-3.1-flash-lite', fetcher = fetch }) {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
-  const response = await fetcher(url, {
+  const request = {
     method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
-    redirect: 'error',
     signal: AbortSignal.timeout(12000),
     body: JSON.stringify({
       systemInstruction: { parts: [{ text: instruction }] },
       contents: [{ role: 'user', parts: [{ text: input }] }],
       generationConfig: { responseMimeType: 'application/json', responseJsonSchema: schema, maxOutputTokens: 512 },
     }),
-  });
-  if (!response.ok) throw new Error('Gemini request failed');
+  };
+  let response;
+  try {
+    response = await fetcher(url, request);
+  } catch (error) {
+    const reason = ['AbortError', 'TimeoutError'].includes(error?.name) ? 'Request timed out' : 'Connection failed';
+    console.warn('Gemini provider:', reason);
+    throw error;
+  }
+  if (!response.ok) {
+    console.warn('Gemini provider HTTP status:', response.status);
+    throw new Error('Gemini request failed');
+  }
   const body = await response.json();
   const candidate = body.candidates?.[0];
   if (candidate?.finishReason !== 'STOP') throw new Error('Gemini did not return a complete draft');

@@ -105,9 +105,9 @@ test('a failed forecast can be retried', async () => {
 });
 
 test('Gemini uses a server-side header and independently validates returned settings', async () => {
-  const gemini = (draft, finishReason = 'STOP') => async (_, request) => {
+  const gemini = (draft, finishReason = 'STOP') => async (url, request) => {
+    assert.equal(new URL(url).origin, 'https://generativelanguage.googleapis.com');
     assert.equal(request.headers['x-goog-api-key'], 'test-key');
-    assert.equal(request.redirect, 'error');
     const body = JSON.parse(request.body);
     assert.equal(body.contents[0].parts[0].text, 'Pickup at 3 pm');
     assert.equal(body.generationConfig.responseJsonSchema.additionalProperties, false);
@@ -116,6 +116,21 @@ test('Gemini uses a server-side header and independently validates returned sett
   assert.deepEqual(await extractRoutine('Pickup at 3 pm', { key: 'test-key', fetcher: gemini({ fixedTime: '15:00' }) }), { fixedTime: '15:00' });
   await assert.rejects(extractRoutine('Pickup at 3 pm', { key: 'test-key', fetcher: gemini({ fixedTime: '25:00' }) }), /validation/);
   await assert.rejects(extractRoutine('Pickup at 3 pm', { key: 'test-key', fetcher: gemini({}, 'MAX_TOKENS') }), /complete draft/);
+});
+
+test('Gemini diagnostics report status without logging request or provider details', async (t) => {
+  const log = t.mock.method(console, 'warn', () => {});
+  const config = { key: 'test-key' };
+  await assert.rejects(extractRoutine('Private routine', {
+    ...config, fetcher: async () => new Response('Private provider error', { status: 429 }),
+  }), /request failed/);
+  await assert.rejects(extractRoutine('Private routine', {
+    ...config, fetcher: async () => { throw new DOMException('Private connection detail', 'TimeoutError'); },
+  }), { name: 'TimeoutError' });
+  assert.deepEqual(log.mock.calls.map(({ arguments: args }) => args), [
+    ['Gemini provider HTTP status:', 429],
+    ['Gemini provider:', 'Request timed out'],
+  ]);
 });
 
 test('localized forecast route, static policy and unconfigured Gemini operate independently', async (t) => {
