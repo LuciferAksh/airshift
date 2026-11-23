@@ -24,6 +24,10 @@ npm run verify:worker
 
 Strict TypeScript checking covers the JavaScript planner, forecast parsing and caching, recommendation contracts, Gemini adapter, and shared HTTP handler. The Worker bundle is written to `dist/server/` and builds without the private hosting manifest. The Worker check runs that artifact and requests every registered asset. GitHub Actions runs these checks on every push and pull request.
 
+## Deploy on Vercel
+
+Import the repository as a Node.js project. Vercel detects the root `server.ts` entry, which starts the same HTTP handler used locally. Set `GEMINI_API_KEY` as a production secret and redeploy. Set `GEMINI_MODEL` only when overriding the default model. Verify the production domain from a signed-out browser with a live forecast and both Gemini actions.
+
 Open `http://127.0.0.1:4176`. New Delhi’s current modeled AQI and tomorrow’s forecast load by default. Search for a city or postal code or click **Detect my location** to use your approximate position. Open-Meteo receives the city search and the forecast uses rounded coordinates. Gemini receives no coordinates or location lookup terms. Community notices may show a selected city name and omit detected coordinates. The server keeps a bounded in-memory forecast cache. For a deterministic walkthrough, open `http://127.0.0.1:4176/?sample=1`. The sample uses New Delhi and switching back restores the selected live location. For a hosted Node runtime, set `HOST=0.0.0.0` and use the platform’s `PORT`.
 
 To enable Gemini, copy `.env.example` to `.env` and supply a dedicated `GEMINI_API_KEY`, or set that secret in the hosting environment. Restart after changing configuration. **Draft settings** parses a routine for review before applying it. **Personalize recommendations with Gemini** sends feasible schedule, indoor and travel choices with the user's priorities for ranking. Gemini returns action IDs and a short personalized rationale. The app validates the choices and computes the displayed impacts. Both actions require a click, and the forecast-based plan remains usable during provider outages.
