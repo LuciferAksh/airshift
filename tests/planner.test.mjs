@@ -87,6 +87,7 @@ test('profiles reject unfit windows, cross-midnight activities and unavailable f
 });
 
 test('routine validation identifies the field to correct', () => {
+  assert.deepEqual(profileIssue(null), { field: null, message: 'Provide a routine with valid settings.' });
   const profile = defaults();
   for (const [settings, field] of [
     [{ audience: 'other' }, 'audience'],

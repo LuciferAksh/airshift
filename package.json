@@ -9,11 +9,14 @@
   "scripts": {
     "start": "node --env-file-if-exists=.env server/index.mjs",
     "test": "node --test",
+    "typecheck": "tsc --project tsconfig.json",
     "coverage": "node --test --experimental-test-coverage",
+    "verify:worker": "node scripts/verify-worker.mjs",
     "build:sites": "node scripts/build-sites.mjs"
   },
   "devDependencies": {
     "axe-core": "^4.14.1",
-    "esbuild": "^0.28.2"
+    "esbuild": "^0.28.2",
+    "typescript": "5.9.3"
   }
 }

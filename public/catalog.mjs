@@ -27,6 +27,7 @@ export const activities = Object.freeze({
   group: { label: 'Outdoor group activity', strenuous: true },
 });
 
+/** @param {import('../types/airshift.js').Profile} profile */
 export function flexibleActivity(profile) {
   return profile.activity === 'default' ? audiences[profile.audience].flexible : activities[profile.activity].label;
 }
@@ -60,6 +61,10 @@ export const indoorActions = Object.freeze({
   },
 });
 
+/**
+ * @param {import('../types/airshift.js').Audience} [audience]
+ * @returns {import('../types/airshift.js').Profile}
+ */
 export function defaults(audience = 'family') {
   return {
     audience, activity: 'default', fixedTime: '15:00', fixedMinutes: 15, usualTime: '09:00',

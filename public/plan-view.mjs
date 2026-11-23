@@ -44,9 +44,9 @@ export function renderPlan(profile, forecast, recommendation) {
   setText('indoor-reason', plan.indoor.effect);
   byId('indoor-source').href = plan.indoor.source;
 
-  const travelId = recommendation?.travel ?? profile.travel;
+  const travelId = plan.travel;
   const travel = travelOptions[travelId];
-  const enteredDistance = travelId !== 'none' && travelId === profile.travel && profile.distance > 0;
+  const enteredDistance = plan.carKmAvoided > 0;
   byId('travel-row').hidden = !recommendation && travelId === 'none';
   setText('travel-title', travel.label);
   setText('travel-reason', travelId === 'none' ? 'Confirm an available rail trip or stops you can combine to compare an alternative.' : travel.effect);

@@ -10,10 +10,10 @@ import { extractRoutine } from '../server/gemini.mjs';
 
 const date = '2026-11-21';
 const timestamp = Date.parse('2026-11-20T04:00:00Z');
-const forecast = () => ({
+const forecast = (day = date) => ({
   hourly_units: { pm2_5: 'μg/m³' },
   hourly: {
-    time: Array.from({ length: 24 }, (_, hour) => `${date}T${String(hour).padStart(2, '0')}:00`),
+    time: Array.from({ length: 24 }, (_, hour) => `${day}T${String(hour).padStart(2, '0')}:00`),
     pm2_5: Array(24).fill(44), us_aqi: Array(24).fill(90),
   },
 });
@@ -97,6 +97,21 @@ test('concurrent city requests share a fetch and expired forecasts refresh', asy
   assert.equal(calls, 3);
 });
 
+test('concurrent readers after local midnight share the newly dated forecast', async () => {
+  let now = Date.parse('2026-11-20T18:29:00Z');
+  let calls = 0;
+  const read = forecastService(async () => {
+    calls += 1;
+    return Response.json(forecast(tomorrowAt(now, 'Asia/Kolkata')));
+  }, () => now);
+  assert.equal((await read('delhi')).date, '2026-11-21');
+  now += 60_000;
+  const forecasts = await Promise.all([read('delhi'), read('delhi'), read('delhi')]);
+  assert.deepEqual(forecasts.map((item) => item.date), ['2026-11-22', '2026-11-22', '2026-11-22']);
+  assert.equal(calls, 2);
+  assert.equal(forecasts[0], forecasts[1]);
+});
+
 test('a failed forecast can be retried', async () => {
   let calls = 0;
   const getForecast = forecastService(async () => ++calls === 1 ? Response.error() : Response.json(forecast()), () => timestamp);
@@ -131,6 +146,29 @@ test('Gemini diagnostics report status without logging request or provider detai
     ['Gemini provider HTTP status:', 429],
     ['Gemini provider:', 'Request timed out'],
   ]);
+});
+
+test('Gemini retries a 503 once inside the original deadline', async (t) => {
+  t.mock.method(console, 'warn', () => {});
+  const requests = [];
+  const config = { key: 'test-key', fetcher: async (_, request) => {
+    requests.push(request);
+    if (requests.length === 1) return new Response(null, { status: 503 });
+    return Response.json({ candidates: [{ finishReason: 'STOP', content: { parts: [{ text: '{"fixedTime":"15:00"}' }] } }] });
+  } };
+  assert.deepEqual(await extractRoutine('Pickup at 3 pm', config), { fixedTime: '15:00' });
+  assert.equal(requests.length, 2);
+  assert.equal(requests[0].signal, requests[1].signal);
+  assert.equal(requests[0].body, requests[1].body);
+
+  let unavailableAttempts = 0;
+  await assert.rejects(extractRoutine('Pickup at 3 pm', {
+    key: 'test-key', fetcher: async () => {
+      unavailableAttempts += 1;
+      return new Response(null, { status: 503 });
+    },
+  }), /request failed/);
+  assert.equal(unavailableAttempts, 2);
 });
 
 test('localized forecast route, static policy and unconfigured Gemini operate independently', async (t) => {

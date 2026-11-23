@@ -12,7 +12,17 @@ npm test
 npm run coverage
 ```
 
-With development dependencies installed through `npm ci`, run `npm run build:sites` to produce the portable Worker bundle under `dist/server/`. Private hosting metadata is optional for the bundle. The GitHub workflow runs the tests and build on every push and pull request.
+To verify a clean checkout, run these commands from the repository root.
+
+```sh
+npm ci
+npm run typecheck
+npm run coverage
+npm run build:sites
+npm run verify:worker
+```
+
+Strict TypeScript checking covers the JavaScript planner, forecast parsing and caching, recommendation contracts, Gemini adapter, and shared HTTP handler. The Worker bundle is written to `dist/server/` and builds without the private hosting manifest. The Worker check runs that artifact and requests every registered asset. GitHub Actions runs these checks on every push and pull request.
 
 Open `http://127.0.0.1:4176`. New Delhi’s current modeled AQI and tomorrow’s forecast load by default. Search for a city or postal code or click **Detect my location** to use your approximate position. Open-Meteo receives the city search and the forecast uses rounded coordinates. Gemini receives no coordinates or location lookup terms. Community notices may show a selected city name and omit detected coordinates. The server keeps a bounded in-memory forecast cache. For a deterministic walkthrough, open `http://127.0.0.1:4176/?sample=1`. The sample uses New Delhi and switching back restores the selected live location. For a hosted Node runtime, set `HOST=0.0.0.0` and use the platform’s `PORT`.
 
@@ -39,13 +49,13 @@ npx --package @playwright/cli playwright-cli -s=airshift-check close
 
 | Boundary | Responsibility |
 | --- | --- |
-| `public/planner.mjs` | Validates settings, evaluates full minute-aligned slots without overlapping the fixed commitment, and computes comparisons and notices. |
+| `public/planner.mjs`, `types/airshift.d.ts` | Validate routine settings and share typed contracts for forecasts and recommendations. The planner evaluates each eligible window once, then selects the lowest-exposure option and a bounded alternative closer to the usual time. It computes impact from the selected plan. |
 | `public/app.mjs` | Coordinates the applied routine, current forecast and validated recommendation. |
 | `public/forecast-ui.mjs`, `public/places.mjs` | Manage location and forecast requests, render current readings, and expose the hourly data as a table and a chart. |
 | `public/routine-ui.mjs` | Maps form inputs to settings, guides users to invalid fields, and lets them review Gemini drafts before applying them. |
 | `public/plan-view.mjs`, `public/recommendations-ui.mjs` | Render impact estimates, the community notice and Gemini's selected recommendations using text nodes. |
-| `public/air-data.mjs`, `server/forecast.mjs` | Validate current conditions and tomorrow’s forecast from Open-Meteo. Local Node requests use the server cache first and the public browser route as fallback. The hosted build uses the public route first after the hosting runtime failed to reach the provider. |
-| `server/gemini.mjs` | Extracts explicit schedule, travel and home constraints with a structured schema and validates the response before returning it. |
+| `public/air-data.mjs`, `server/forecast.mjs` | Validate current conditions and tomorrow’s forecast from Open-Meteo. The Node cache shares refreshes across concurrent callers, including when the forecast date rolls over. The hosted build requests the browser forecast first. |
+| `server/gemini.mjs` | Validates Gemini responses against the expected draft or recommendation contract. An upstream HTTP 503 allows one retry within the original request deadline. |
 | `public/recommendations.mjs`, `server/gemini.mjs` | Build bounded recommendations from eligible intervals and declared options. Gemini selects existing action IDs and writes the rationale. The same contract checks the result before the browser displays it. |
 | `server/http.mjs` | Serves an allowlist of assets, validates inbound requests and limits location and Gemini requests. The 40-call Gemini hourly quota is per process or Worker isolate. |
 | `server/app.mjs`, `server/worker.mjs` | Connect the same application handler to Node HTTP and hosted Workers respectively. |

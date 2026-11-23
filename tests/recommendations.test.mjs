@@ -22,6 +22,15 @@ test('the schedule choice changes the plan and recomputes impact from the real i
   assert.equal(personalized.carKmAvoided, 0);
 });
 
+test('a suggested travel change uses distance confirmed for that same option', () => {
+  const profile = { ...defaults(), travel: 'bundle', distance: 6 };
+  const alternative = makePlan(profile, day, selection);
+  assert.equal(alternative.travel, 'transit');
+  assert.equal(alternative.carKmAvoided, 0);
+  const confirmed = makePlan({ ...profile, travel: 'transit' }, day, selection);
+  assert.equal(confirmed.carKmAvoided, 6);
+});
+
 test('options exclude equipment and transport the user did not confirm', () => {
   assert.ok(validRecommendationInput(input));
   const context = recommendationContext(input);
@@ -32,6 +41,9 @@ test('options exclude equipment and transport the user did not confirm', () => {
     assert.equal(validRecommendation({ ...selection, ...change }, context), false);
   }
   assert.equal(validRecommendationInput({ ...input, hours: day.hours.slice(1) }), false);
+  const sparseHours = day.hours.slice();
+  delete sparseHours[10];
+  assert.equal(validRecommendationInput({ ...input, hours: sparseHours }), false);
   assert.equal(validRecommendationInput({ ...input, profile: null }), false);
   assert.equal(validRecommendationInput({ ...input, preferences: { ...preferences, rail: 'yes' } }), false);
 });
