@@ -22,7 +22,7 @@ npm run build:sites
 npm run verify:worker
 ```
 
-Strict TypeScript checking covers the JavaScript planner, forecast parsing and caching, recommendation contracts, Gemini adapter, and shared HTTP handler. The Worker bundle is written to `dist/server/` and builds without the private hosting manifest. The Worker check runs that artifact and requests every registered asset. GitHub Actions runs these checks on every push and pull request.
+Strict TypeScript checking covers the planner, forecast transport, recommendation contracts, Gemini adapter, shared HTTP handler, and Vercel entry. The Node test suite starts the Vercel entry on an ephemeral port and checks the planner and API over HTTP. The Worker check runs the bundle under `dist/server/` and requests every registered asset. GitHub Actions runs these checks on every push and pull request.
 
 ## Deploy on Vercel
 
@@ -55,7 +55,8 @@ npx --package @playwright/cli playwright-cli -s=airshift-check close
 | --- | --- |
 | `public/planner.mjs`, `types/airshift.d.ts` | Validate routine settings and share typed contracts for forecasts and recommendations. The planner evaluates each eligible window once, then selects the lowest-exposure option and a bounded alternative closer to the usual time. It computes impact from the selected plan. |
 | `public/app.mjs` | Coordinates the applied routine, current forecast and validated recommendation. |
-| `public/forecast-ui.mjs`, `public/places.mjs` | Manage location and forecast requests, render current readings, and expose the hourly data as a table and a chart. |
+| `public/forecast-ui.mjs`, `public/places.mjs` | Manage location selection, render current readings, and expose the hourly data as a table and a chart. |
+| `public/forecast-client.mjs` | Orders the same-origin and provider transports, validates the API response, and handles fallback, cancellation, and timeouts. |
 | `public/routine-ui.mjs` | Maps form inputs to settings, guides users to invalid fields, and lets them review Gemini drafts before applying them. |
 | `public/plan-view.mjs`, `public/recommendations-ui.mjs` | Render impact estimates, the community notice and Gemini's selected recommendations using text nodes. |
 | `public/air-data.mjs`, `server/forecast.mjs` | Validate current conditions and tomorrow’s forecast from Open-Meteo. The Node cache shares refreshes across concurrent callers, including when the forecast date rolls over. The hosted build requests the browser forecast first. |

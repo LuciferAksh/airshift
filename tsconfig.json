@@ -11,6 +11,7 @@
   "include": [
     "server.ts",
     "public/air-data.mjs",
+    "public/forecast-client.mjs",
     "public/planner.mjs",
     "public/recommendations.mjs",
     "server/forecast.mjs",

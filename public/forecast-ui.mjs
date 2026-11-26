@@ -1,11 +1,10 @@
 import { cities } from './catalog.mjs';
 import { aqiBand, formatTime, sampleForecast } from './planner.mjs';
 import { drawChart } from './chart.mjs';
-import { fetchAirData, forecastLocation } from './air-data.mjs';
+import { DEFAULT_CITY, requestForecast } from './forecast-client.mjs';
 import { mountCitySearch } from './places.mjs';
 import { byId, number, responseError, setText } from './dom.mjs';
 
-const DEFAULT_CITY = 'delhi';
 const displayZone = (zone) => ['Asia/Kolkata', 'Asia/Calcutta'].includes(zone) ? 'IST' : zone;
 
 function renderCurrent(forecast, message = '') {
@@ -47,28 +46,6 @@ function renderForecast(forecast, chart) {
     return tr;
   });
   byId('hours').replaceChildren(...rows);
-}
-
-async function requestForecast(location, signal) {
-  const useBrowser = document.documentElement.dataset.forecastTransport === 'browser';
-  const fromProvider = () => fetchAirData(forecastLocation(location ?? DEFAULT_CITY), { signal: AbortSignal.any([signal, AbortSignal.timeout(10000)]) });
-  if (useBrowser) {
-    try { return await fromProvider(); }
-    catch { signal.throwIfAborted(); }
-  }
-  const request = location ? {
-    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ lat: location.lat, lon: location.lon }),
-  } : {};
-  const url = location ? '/api/location' : `/api/forecast?city=${DEFAULT_CITY}`;
-  const response = await fetch(url, { ...request, signal }).catch(() => null);
-  if (response?.ok) return response.json();
-  signal.throwIfAborted();
-  if (response && response.status < 500) throw new Error((await response.json()).error);
-  if (!useBrowser) {
-    try { return await fromProvider(); }
-    catch { signal.throwIfAborted(); }
-  }
-  throw new Error('Forecast unavailable. Try another location or switch to the labeled sample.');
 }
 
 export function mountForecast(onChange) {
@@ -116,7 +93,10 @@ export function mountForecast(onChange) {
     byId('official-aqi').hidden = Boolean(location);
     publish(null, `Loading current conditions for ${locationName}…`);
     try {
-      const data = await requestForecast(location, controller.signal);
+      const data = await requestForecast(location, {
+        signal: controller.signal,
+        browserFirst: document.documentElement.dataset.forecastTransport === 'browser',
+      });
       if (controller.signal.aborted) return;
       const localized = location?.label ? { ...data, cityLabel: label } : data;
       const timezone = displayZone(data.timezone);

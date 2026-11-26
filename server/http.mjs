@@ -16,6 +16,7 @@ export const files = {
   '/dom.mjs': ['dom.mjs', 'text/javascript; charset=utf-8'],
   '/validation.mjs': ['validation.mjs', 'text/javascript; charset=utf-8'],
   '/forecast-ui.mjs': ['forecast-ui.mjs', 'text/javascript; charset=utf-8'],
+  '/forecast-client.mjs': ['forecast-client.mjs', 'text/javascript; charset=utf-8'],
   '/plan-view.mjs': ['plan-view.mjs', 'text/javascript; charset=utf-8'],
   '/routine-ui.mjs': ['routine-ui.mjs', 'text/javascript; charset=utf-8'],
   '/air-data.mjs': ['air-data.mjs', 'text/javascript; charset=utf-8'],
